@@ -16,9 +16,12 @@ public class Gui {
     private static final Image FLAG_IMAGE =
             new ImageIcon(Gui.class.getResource("/flag.png")).getImage();
 
+    private static final Image WRONG_IMAGE =
+            new ImageIcon(Gui.class.getResource("/wrong.png")).getImage();
+
     private final int columns;
     private final int rows;
-    private final Game game;
+    private Game game;
 
     private Board board;
 
@@ -54,12 +57,12 @@ public class Gui {
         header.setPreferredSize(new Dimension(0, 40));
 
         JButton restart = new JButton("Restart");
-        restart.setBounds(0, 0, 50, 20);
+        //restart.setBounds(0, 0, 50, 20);
         restart.setFocusable(false);
         restart.addActionListener(e -> restart());
 
         JButton mode = new JButton("Mode");
-        mode.setBounds(0, 0, 50, 20);
+        //mode.setBounds(0, 0, 50, 20);
         mode.setFocusable(false);
 
         JPopupMenu menu = new JPopupMenu();
@@ -67,6 +70,10 @@ public class Gui {
         JMenuItem easy = new JMenuItem("Easy");
         JMenuItem medium = new JMenuItem("Medium");
         JMenuItem hard = new JMenuItem("Hard");
+
+        easy.addActionListener(e -> modeChange(9, 9, 10));
+        medium.addActionListener(e -> modeChange(16, 16, 40));
+        hard.addActionListener(e -> modeChange(30, 16, 99));
 
         menu.add(easy);
         menu.add(medium);
@@ -111,6 +118,19 @@ public class Gui {
         flagCount.setText(Integer.toString(game.getMines()));
     }
 
+    private void modeChange(int rows, int columns, int minesCount) {
+        game = new Game(rows, columns, minesCount);
+        board.revalidate();
+        board.repaint();
+
+        board.setPreferredSize(new Dimension(
+                columns * CELL_SIZE,
+                rows * CELL_SIZE
+        ));
+        frame.pack();
+
+    }
+
     private final class Board extends JPanel {
 
         private int rowHover = -1;
@@ -118,12 +138,14 @@ public class Gui {
 
         @Override
         public void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+
             if (!(graphics instanceof Graphics2D g)) {
                 throw new IllegalArgumentException("should be Graphics2D");
             }
 
-            for (int row = 0; row < rows; row++) {
-                for (int column = 0; column < columns; column++) {
+            for (int row = 0; row < game.getRows(); row++) {
+                for (int column = 0; column < game.getColomns(); column++) {
                     drawCell(row, column,g);
                 }
             }
@@ -136,9 +158,17 @@ public class Gui {
             boolean isHover = row == rowHover && column == columnHover;
             boolean isOpen = game.isOpen(row, column);
 
-            int x = coordinates.x();
-            int y = coordinates.y();
+            int x = coordinates.row();
+            int y = coordinates.colomn();
             int s = CELL_SIZE;
+
+            //System.out.println(x + " " + y);
+            if (game.isWrong(row, column)) {
+                g.setColor(Color.GRAY);
+                g.fillRect(x, y, s, s);
+                g.drawImage(WRONG_IMAGE, x, y, s, s, null);
+                return;
+            }
 
             if (!isOpen) {
                 g.setPaint(isHover ? new Color(200, 200, 200) : Color.LIGHT_GRAY);

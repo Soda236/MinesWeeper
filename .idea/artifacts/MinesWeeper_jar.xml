@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="MinesWeeper:jar">
+    <output-path>$USER_HOME$/Desktop</output-path>
+    <root id="archive" name="MinesWeeper.jar">
+      <element id="module-output" name="MinesWeeper" />
+    </root>
+  </artifact>
+</component>

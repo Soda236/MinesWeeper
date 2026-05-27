@@ -12,6 +12,7 @@ public class Game {
     private final ArrayList<Cell> mines = new ArrayList<>();
     private final ArrayList<Cell> openedCells = new ArrayList<>();
     private final ArrayList<Cell> isFlagged = new ArrayList<>();
+    public final ArrayList<Cell> wrong = new ArrayList<>();
 
     public boolean start = true;
     private boolean isOver = false;
@@ -22,6 +23,18 @@ public class Game {
         this.minesCount = minesCount;
         this.rows = rows;
         this.columns = columns;
+    }
+
+    public boolean isWrong(int row, int column) {
+        return wrong.contains(new Cell(row, column));
+    }
+
+    public int getRows() {
+        return rows;
+    }
+
+    public int getColomns() {
+        return columns;
     }
 
     public int getMines() {
@@ -72,7 +85,7 @@ public class Game {
         }
         if (mineCount == flagCount) {
             for (Cell cell : temp) {
-                open(cell.x(), cell.y());
+                open(cell.row(), cell.colomn());
             }
         }
     }
@@ -81,6 +94,8 @@ public class Game {
         mines.clear();
         openedCells.clear();
         isFlagged.clear();
+        wrong.clear();
+
         start = true;
         isOver = false;
     }
@@ -150,6 +165,12 @@ public class Game {
     private void over() {
         isOver = true;
         openedCells.addAll(mines);
+
+        for (Cell cell : isFlagged) {
+            if (!mines.contains(cell)) {
+                wrong.add(cell);
+            }
+        }
     }
 
     private void generateMines(int startRow, int startCol) {
