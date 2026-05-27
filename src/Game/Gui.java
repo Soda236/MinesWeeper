@@ -2,6 +2,7 @@ package Game;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.InputEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -12,11 +13,20 @@ public class Gui {
     private static final Image MINE_IMAGE =
         new ImageIcon(Gui.class.getResource("/mine.png")).getImage();
 
+    private static final Image FLAG_IMAGE =
+            new ImageIcon(Gui.class.getResource("/flag.png")).getImage();
+
     private final int columns;
     private final int rows;
     private final Game game;
 
     private Board board;
+
+    private JLabel flagCount;
+    private JLabel timerLabel;
+    private Timer timer;
+
+    private int time = 0;
 
     private final JFrame frame = new JFrame();
 
@@ -40,26 +50,65 @@ public class Gui {
         board.addMouseListener(new MouseListener(this));
         board.addMouseMotionListener(new MouseListener(this));
 
-        JPanel header = new JPanel();
+        JPanel header = new JPanel(new BorderLayout());
         header.setPreferredSize(new Dimension(0, 40));
 
-        JButton button = new JButton("Restart");
-        button.setBounds(0, 0, 50, 20);
-        button.setFocusable(false);
-        button.addActionListener(e -> restart());
-        header.add(button);
+        JButton restart = new JButton("Restart");
+        restart.setBounds(0, 0, 50, 20);
+        restart.setFocusable(false);
+        restart.addActionListener(e -> restart());
+
+        JButton mode = new JButton("Mode");
+        mode.setBounds(0, 0, 50, 20);
+        mode.setFocusable(false);
+
+        JPopupMenu menu = new JPopupMenu();
+
+        JMenuItem easy = new JMenuItem("Easy");
+        JMenuItem medium = new JMenuItem("Medium");
+        JMenuItem hard = new JMenuItem("Hard");
+
+        menu.add(easy);
+        menu.add(medium);
+        menu.add(hard);
+
+
+        mode.addActionListener(e -> {
+            menu.show(mode, 0, mode.getHeight());
+        });
+
+
+        JPanel central = new JPanel();
+        central.add(restart);
+        central.add(mode);
+
+
+        timerLabel = new JLabel("000");
+        timer = new Timer(1000, e -> {
+            time++;
+            timerLabel.setText(String.valueOf(time));
+        });
+        flagCount = new JLabel(Integer.toString(game.getMines()));
+
+        header.add(flagCount, BorderLayout.WEST);
+        header.add(central, BorderLayout.CENTER);
+        header.add(timerLabel, BorderLayout.EAST);
 
         frame.add(board, BorderLayout.CENTER);
         frame.add(header, BorderLayout.NORTH);
 
         frame.pack();
-
         frame.setVisible(true);
     }
 
-    private void restart() {
+    public void restart() {
+        timer.stop();
+        time = 0;
+        timerLabel.setText("000");
+
         game.restart();
         board.repaint();
+        flagCount.setText(Integer.toString(game.getMines()));
     }
 
     private final class Board extends JPanel {
@@ -75,25 +124,23 @@ public class Gui {
 
             for (int row = 0; row < rows; row++) {
                 for (int column = 0; column < columns; column++) {
-                    boolean isOpen = game.toOpen(row, column);
-
-                    drawCell(row, column, isOpen, g);
+                    drawCell(row, column,g);
                 }
             }
         }
 
-        private void drawCell(int row, int column, boolean isOpen, Graphics2D g) {
+        private void drawCell(int row, int column,Graphics2D g) {
 
             Cell coordinates = cellToPixels(row, column);
 
             boolean isHover = row == rowHover && column == columnHover;
+            boolean isOpen = game.isOpen(row, column);
 
             int x = coordinates.x();
             int y = coordinates.y();
             int s = CELL_SIZE;
 
             if (!isOpen) {
-
                 g.setPaint(isHover ? new Color(200, 200, 200) : Color.LIGHT_GRAY);
                 g.fillRect(x, y, s, s);
 
@@ -105,6 +152,10 @@ public class Gui {
                 g.drawLine(x, y + s - 1, x + s - 1, y + s - 1);
                 g.drawLine(x + s - 1, y, x + s - 1, y + s - 1);
 
+                if (game.isFlagged(row, column)) {
+                    g.drawImage(FLAG_IMAGE, x, y, s, s, null);
+                }
+
             } else {
                 g.setPaint(Color.GRAY);
                 g.fillRect(x, y, s, s);
@@ -113,12 +164,9 @@ public class Gui {
                 g.drawRect(x, y, s, s);
 
                 if (game.isMine(row, column)) {
-                    g.setColor(Color.RED);
+                    g.setColor(game.isExploded(row, column) ? Color.RED : Color.GRAY);
                     g.fillRect(x, y, s, s);
                     g.drawImage(MINE_IMAGE, x, y, s, s, null);
-
-                    game.over();
-                    board.repaint();
                 } else {
                     int count = game.minesCount(row, column);
                     switch (count) {
@@ -149,8 +197,8 @@ public class Gui {
                         default:
                             g.setColor(new Color(0, 0, 0, 0));
                     }
-                    g.drawString(Integer.toString(count), x + 10, y + 20);
                     g.setFont(new Font("Arial", Font.BOLD, 18));
+                    g.drawString(Integer.toString(count), x + 10, y + 20);
                 }
             }
         }
@@ -173,12 +221,56 @@ public class Gui {
 
         @Override
         public void mouseClicked(MouseEvent e) {
+            if (gui.game.start) {
+                gui.timer.start();
+            }
+
             int row = (e.getY() / CELL_SIZE);
             int column = (e.getX() / CELL_SIZE);
 
-            gui.game.open(row, column);
+            if (e.getButton() == MouseEvent.BUTTON1) {
+                gui.game.open(row, column);
+            } else if (e.getButton() == MouseEvent.BUTTON3) {
+                gui.game.flag(row, column);
+                gui.flagCount.setText(Integer.toString(gui.game.getMines() - gui.game.getFlagCount()));
+            }
             gui.board.repaint();
+
+            if (gui.game.isOver()) {
+                gui.timer.stop();
+                JOptionPane.showMessageDialog(
+                        null,
+                        ":(",
+                        "Game is over!",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+                gui.restart();
+            } else if (gui.game.isWin()) {
+                gui.timer.stop();
+                JOptionPane.showMessageDialog(
+                        null,
+                        ":)",
+                        "You win",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+                gui.restart();
+            }
         }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            int buttons = e.getModifiersEx();
+
+            int row = (e.getY() / CELL_SIZE);
+            int column = (e.getX() / CELL_SIZE);
+
+            if ((buttons & InputEvent.BUTTON1_DOWN_MASK) != 0 &&
+                    (buttons & InputEvent.BUTTON3_DOWN_MASK) != 0) {
+
+                gui.game.openAround(row, column);
+            }
+        }
+
 
         @Override
         public void mouseMoved(MouseEvent e) {

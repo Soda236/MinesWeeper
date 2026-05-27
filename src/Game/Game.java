@@ -2,6 +2,7 @@ package Game;
 
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.Stack;
 
 public class Game {
     private final int rows;
@@ -10,9 +11,12 @@ public class Game {
 
     private final ArrayList<Cell> mines = new ArrayList<>();
     private final ArrayList<Cell> openedCells = new ArrayList<>();
+    private final ArrayList<Cell> isFlagged = new ArrayList<>();
 
-    private boolean start = true;
-    public boolean isOver = false;
+    public boolean start = true;
+    private boolean isOver = false;
+
+    private Cell explodedCell;
 
     public Game(int rows, int columns, int minesCount) {
         this.minesCount = minesCount;
@@ -20,14 +24,63 @@ public class Game {
         this.columns = columns;
     }
 
-    public void over() {
-        isOver = true;
-        openedCells.addAll(mines);
+    public int getMines() {
+        return minesCount;
+    }
+
+    public void flag(int row, int column) {
+        Cell cell = new Cell(row, column);
+        if (!isFlagged.contains(cell) && !openedCells.contains(cell)) {
+            isFlagged.add(cell);
+        } else {
+            isFlagged.remove(cell);
+        }
+    }
+
+    public int getFlagCount() {
+        return isFlagged.size();
+    }
+
+    public boolean isWin() {
+        return openedCells.size() == (rows * columns - minesCount);
+    }
+
+    public boolean isOver() {
+        return isOver;
+    }
+
+    public void openAround(int row, int column) {
+        int mineCount = 0;
+        int flagCount = 0;
+        ArrayList<Cell> temp = new ArrayList<>();
+        for (int i = row - 1; i <= row + 1; i++) {
+            for (int j = column - 1; j <= column + 1; j++) {
+                Cell cell = new Cell(i, j);
+                if (openedCells.contains(cell)) continue;
+                if (i < 0 || j < 0 || i >= rows || j >= columns) continue;
+                if (i == row && j == column) continue;
+
+                temp.add(cell);
+                if (isFlagged.contains(cell)) {
+                    flagCount++;
+                    temp.remove(cell);
+                }
+                if (mines.contains(cell)) {
+                    mineCount++;
+                }
+            }
+        }
+        if (mineCount == flagCount) {
+            for (Cell cell : temp) {
+                open(cell.x(), cell.y());
+            }
+        }
     }
 
     public void restart() {
         mines.clear();
         openedCells.clear();
+        isFlagged.clear();
         start = true;
         isOver = false;
     }
@@ -50,7 +103,12 @@ public class Game {
         }
 
         Cell cell = new Cell(row, column);
-        if (openedCells.contains(cell)) {
+        if (isMine(row, column)) {
+            over();
+            explodedCell = cell;
+            return;
+        }
+        if (openedCells.contains(cell) || isFlagged.contains(cell)) {
             return;
         }
         openedCells.add(cell);
@@ -73,12 +131,25 @@ public class Game {
         }
     }
 
+    public boolean isFlagged(int row, int column) {
+        return isFlagged.contains(new Cell(row, column));
+    }
+
     public boolean isMine(int row, int column) {
         return mines.contains(new Cell(row, column));
     }
 
-    public boolean toOpen(int row, int column) {
+    public boolean isOpen(int row, int column) {
         return openedCells.contains(new Cell(row, column));
+    }
+
+    public boolean isExploded(int row, int column) {
+        return explodedCell != null && explodedCell.equals(new Cell(row, column));
+    }
+
+    private void over() {
+        isOver = true;
+        openedCells.addAll(mines);
     }
 
     private void generateMines(int startRow, int startCol) {

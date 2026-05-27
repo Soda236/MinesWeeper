@@ -5,6 +5,6 @@ public class Runner {
         int rows = 20;
         int columns = 20;
 
-        new Gui(rows, columns, new Game(rows, columns, 50)).show();
+        new Gui(rows, columns, new Game(rows, columns, 20)).show();
     }
 }
