@@ -128,7 +128,7 @@ public class Gui {
                 rows * CELL_SIZE
         ));
         frame.pack();
-
+        restart();
     }
 
     private final class Board extends JPanel {
